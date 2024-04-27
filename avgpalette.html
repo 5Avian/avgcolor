@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>avgpalette</title>
+</head>
+<body>
+    <canvas id="canvas" width="0" height="0"></canvas>
+    <input id="tile_width" type="number" value="16">
+    <input id="tile_height" type="number" value="16">
+    <div id="image_drop">Drop images here</div>
+    <a id="download_anchor"></a>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            width: 100%;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+        #canvas {
+            border: 1px solid black;
+            width: 200px;
+            height: 200px;
+            image-rendering: pixelated;
+        }
+        #image_drop {
+            border: 2px dashed black;
+            padding: 25px 100px;
+        }
+        #download_anchor {
+            display: none;
+        }
+    </style>
+    <script>
+        const canvas = document.getElementById("canvas");
+        const imageDrop = document.getElementById("image_drop");
+        const tileWidth = document.getElementById("tile_width");
+        const tileHeight = document.getElementById("tile_height");
+        const downloadAnchor = document.getElementById("download_anchor");
+
+        function computeAverageColor(imageData, x, y, width, height) {
+            let r = 0, g = 0, b = 0;
+            let numOpaquePixels = 0;
+            for (let yi = 0; yi < height; yi++) {
+                for (let xi = 0; xi < width; xi++) {
+                    const i = ((y + yi) * imageData.width + x + xi) * 4;
+                    const alpha = imageData.data[i + 3] / 255.0;
+                    r += imageData.data[i + 0] * alpha;
+                    g += imageData.data[i + 1] * alpha;
+                    b += imageData.data[i + 2] * alpha;
+                    numOpaquePixels += alpha;
+                }
+            }
+            r /= numOpaquePixels;
+            g /= numOpaquePixels;
+            b /= numOpaquePixels;
+            const hexColor = 
+                Math.floor(r).toString(16).padStart(2, "0") +
+                Math.floor(g).toString(16).padStart(2, "0") +
+                Math.floor(b).toString(16).padStart(2, "0");
+            return hexColor;
+        }
+
+        function replaceFileExtension(fileName, fileExtension) {
+            const split = fileName.split(".");
+            if (split.length !== 0)
+                split.pop();
+            split.push(fileExtension);
+            return split.join(".");
+        }
+
+        function downloadBlob(blob, fileName) {
+            const url = URL.createObjectURL(blob);
+            downloadAnchor.href = url;
+            downloadAnchor.download = fileName;
+            downloadAnchor.click();
+        }
+
+        imageDrop.ondrop = e => {
+            e.preventDefault();
+            const width = parseInt(tileWidth.value);
+            const height = parseInt(tileHeight.value);
+            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+                alert("Please select a valid tile width and height.");
+                return;
+            }
+
+			const file = e.dataTransfer.files[0];
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                
+                let hexString = "";
+                for (let x = 0; x + width - 1 < imageData.width; x += width) {
+                    for (let y = 0; y + height - 1 < imageData.height; y += height) {
+                        hexString += computeAverageColor(imageData, x, y, width, height) + "\r\n";
+                    }
+                }
+                const blob = new Blob([hexString], {type: "text/plain;charset=utf-8"});
+                const fileName = replaceFileExtension(file.name, "hex");
+                downloadBlob(blob, fileName);
+            };
+            img.src = url;
+        };
+        imageDrop.ondragover = e => {
+            e.preventDefault();
+        }
+    </script>
+</body>
+</html>
