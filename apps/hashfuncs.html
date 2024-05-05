@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>hashfuncs</title>
+    <link rel="stylesheet" href="../other/style.css">
+</head>
+<body>
+	<label for="algorithm">Algorithm</label>
+	<select id="algorithm">
+		<option value="djb2">djb2</option>
+		<option value="sdbm">sdbm</option>
+		<option value="fnv-1">fnv-1</option>
+		<option value="fnv-1a">fnv-1a</option>
+		<option value="one_at_a_time">one_at_a_time</option>
+	</select>
+	<label for="data_type">Data type</label>
+	<select id="data_type">
+		<option value="32">uint32_t</option>
+		<option value="64">uint64_t</option>
+	</select>
+	<label for="input_string">Input string</label>
+	<input id="input_string" type="text" value="hash me">
+	<label for="output_hash">Output hash</label>
+	<input id="output_hash" type="text" readonly>
+	<a id="algorithm_reference" target="_blank">Algorithm reference</a>
+	<script>
+		const algorithm = document.getElementById("algorithm");
+		const dataType = document.getElementById("data_type");
+		const inputString = document.getElementById("input_string");
+		const outputHash = document.getElementById("output_hash");
+		const algorithmReference = document.getElementById("algorithm_reference");
+
+		const encoder = new TextEncoder();
+		const _0 = BigInt(0);
+		const _1 = BigInt(1);
+		const _3 = BigInt(3);
+		const _5 = BigInt(5);
+		const _6 = BigInt(6);
+		const _10 = BigInt(10);
+		const _11 = BigInt(11);
+		const _15 = BigInt(15);
+		const _16 = BigInt(16);
+		const _5381 = BigInt(5381);
+
+		function getMask(size) {
+			return (_1 << BigInt(size)) - _1;
+		}
+
+		function getFNVPrime(size) {
+			return size == 32 ? BigInt("0x1000193") : BigInt("0x100000001b3");
+		}
+
+		function getFNVOffset(size) {
+			return size == 32 ? BigInt("0x811c9dc5") : BigInt("0xcbf29ce484222325");
+		}
+
+		const algorithms = {
+			"djb2": function(buf, size) {
+				const mask = getMask(size);
+				let hash = _5381;
+				for (const byte of buf) {
+					const c = BigInt(byte);
+					hash = ((hash << _5) + hash) + c; hash &= mask;
+				}
+				return hash;
+			},
+			"sdbm": function(buf, size) {
+				const mask = getMask(size);
+				let hash = _0;
+				for (const byte of buf) {
+					const c = BigInt(byte);
+					hash = c + (hash << _6) + (hash << _16) - hash; hash &= mask;
+				}
+				return hash;
+			},
+			"fnv-1": function(buf, size) {
+				const mask = getMask(size);
+				const prime = getFNVPrime(size);
+				let hash = getFNVOffset(size);
+				for (const byte of buf) {
+					const c = BigInt(byte);
+					hash *= prime; hash &= mask;
+					hash ^= c;
+				}
+				return hash;
+			},
+			"fnv-1a": function(buf, size) {
+				const mask = getMask(size);
+				const prime = getFNVPrime(size);
+				let hash = getFNVOffset(size);
+				for (const byte of buf) {
+					const c = BigInt(byte);
+					hash ^= c;
+					hash *= prime; hash &= mask;
+				}
+				return hash;
+			},
+			"one_at_a_time": function(buf, size) {
+				const mask = getMask(size);
+				let hash = _0;
+				for (const byte of buf) {
+					const c = BigInt(byte);
+					hash += c; hash &= mask;
+					hash += hash << _10; hash &= mask;
+					hash ^= hash >> _6;
+				}
+				hash += hash << _3; hash &= mask;
+				hash ^= hash >> _11;
+				hash += hash << _15; hash &= mask;
+				return hash;
+			}
+		};
+
+		const algorithmReferences = {
+			"djb2": "http://www.cse.yorku.ca/~oz/hash.html#djb2",
+			"sdbm": "http://www.cse.yorku.ca/~oz/hash.html#sdbm",
+			"fnv-1": "https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV-1_hash",
+			"fnv-1a": "https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV-1a_hash",
+			"one_at_a_time": "https://en.wikipedia.org/wiki/Jenkins_hash_function#one_at_a_time",
+		};
+
+		function calculateHash() {
+			const func = algorithms[algorithm.value];
+			const buf = encoder.encode(inputString.value);
+			const size = parseInt(dataType.value);
+			outputHash.value = func(buf, size).toString();
+			const ref = algorithmReferences[algorithm.value];
+			algorithmReference.innerText = "Algorithm reference for " + algorithm.value;
+			algorithmReference.href = ref;
+		}
+
+		for (const input of [algorithm, dataType, inputString])
+			input.oninput = e => calculateHash();
+		calculateHash();
+	</script>
+</body>
+</html>

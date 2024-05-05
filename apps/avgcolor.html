@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>avgcolor</title>
+    <link rel="stylesheet" href="../other/style.css">
+</head>
+<body>
+    <canvas id="canvas" width="0" height="0"></canvas>
+    <div id="image_drop">Drop images here</div>
+    <div id="color_preview"></div>
+    <span id="color_hex">000000</span>
+    <style>
+        #canvas {
+            border: 1px solid black;
+            width: 200px;
+            height: 200px;
+            image-rendering: pixelated;
+        }
+        #image_drop {
+            border: 2px dashed black;
+            padding: 25px 100px;
+        }
+        #color_preview {
+            width: 50px;
+            height: 50px;
+            background-color: black;
+        }
+        #color_hex {
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        const canvas = document.getElementById("canvas");
+        const imageDrop = document.getElementById("image_drop");
+        const colorPreview = document.getElementById("color_preview");
+        const colorHex = document.getElementById("color_hex");
+
+        function computeAverageColor(imageData) {
+            let r = 0, g = 0, b = 0;
+            let numOpaquePixels = 0;
+            for (let y = 0; y < imageData.height; y++) {
+                for (let x = 0; x < imageData.width; x++) {
+                    const i = (y * imageData.width + x) * 4;
+                    const alpha = imageData.data[i + 3] / 255.0;
+                    r += imageData.data[i + 0] * alpha;
+                    g += imageData.data[i + 1] * alpha;
+                    b += imageData.data[i + 2] * alpha;
+                    numOpaquePixels += alpha;
+                }
+            }
+            r /= numOpaquePixels;
+            g /= numOpaquePixels;
+            b /= numOpaquePixels;
+            const hexColor = 
+                Math.floor(r).toString(16).padStart(2, "0") +
+                Math.floor(g).toString(16).padStart(2, "0") +
+                Math.floor(b).toString(16).padStart(2, "0");
+            colorPreview.style.backgroundColor = "#" + hexColor;
+            colorHex.innerText = hexColor;
+        }
+
+        imageDrop.ondrop = e => {
+            e.preventDefault();
+			const file = e.dataTransfer.files[0];
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+                computeAverageColor(ctx.getImageData(0, 0, img.width, img.height));
+            };
+            img.src = url;
+        };
+        imageDrop.ondragover = e => {
+            e.preventDefault();
+        }
+        colorHex.onclick = e => {
+            e.preventDefault();
+            navigator.clipboard.writeText(colorHex.innerText);
+        }
+    </script>
+</body>
+</html>
