@@ -48,12 +48,16 @@
 			return (_1 << BigInt(size)) - _1;
 		}
 
+		function getMaxValue(size) {
+			return size === 32 ? BigInt("0xffffffff") : BigInt("0xffffffffffffffff");
+		}
+
 		function getFNVPrime(size) {
-			return size == 32 ? BigInt("0x1000193") : BigInt("0x100000001b3");
+			return size === 32 ? BigInt("0x1000193") : BigInt("0x100000001b3");
 		}
 
 		function getFNVOffset(size) {
-			return size == 32 ? BigInt("0x811c9dc5") : BigInt("0xcbf29ce484222325");
+			return size === 32 ? BigInt("0x811c9dc5") : BigInt("0xcbf29ce484222325");
 		}
 
 		const algorithms = {
@@ -72,6 +76,7 @@
 				for (const byte of buf) {
 					const c = BigInt(byte);
 					hash = c + (hash << _6) + (hash << _16) - hash; hash &= mask;
+					if (hash < _0) hash += _1 + getMaxValue(size);
 				}
 				return hash;
 			},
