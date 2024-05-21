@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>padtiles</title>
+    <link rel="stylesheet" href="../other/style.css">
+</head>
+<body>
+    <canvas id="canvas" width="0" height="0"></canvas>
+    <input id="tile_width" type="number" value="16">
+    <input id="tile_height" type="number" value="16">
+    <div id="image_drop">Drop images here</div>
+    <a id="download_anchor"></a>
+    <style>
+        #canvas {
+            border: 1px solid black;
+            width: 200px;
+            height: 200px;
+            image-rendering: pixelated;
+        }
+        #image_drop {
+            border: 2px dashed black;
+            padding: 25px 100px;
+        }
+        #download_anchor {
+            display: none;
+        }
+    </style>
+    <script>
+        const canvas = document.getElementById("canvas");
+        const imageDrop = document.getElementById("image_drop");
+        const tileWidth = document.getElementById("tile_width");
+        const tileHeight = document.getElementById("tile_height");
+        const downloadAnchor = document.getElementById("download_anchor");
+
+		function blitPaddedTileUntileable(ctx, bmp, xi, yi, width, height) {
+			// Bitmap Offset
+			const boffx = xi * width;
+			const boffy = yi * height;
+			// Canvas Offset
+			const coffx = xi * (width + 2);
+			const coffy = yi * (height + 2);
+			// Corners
+			ctx.drawImage(bmp, boffx, boffy, 1, 1, coffx, coffy, 1, 1);
+			ctx.drawImage(bmp, boffx + width - 1, boffy, 1, 1, coffx + width + 1, coffy, 1, 1);
+			ctx.drawImage(bmp, boffx, boffy + height - 1, 1, 1, coffx, coffy + height + 1, 1, 1);
+			ctx.drawImage(bmp, boffx + width - 1, boffy + height - 1, 1, 1, coffx + width + 1, coffy + height + 1, 1, 1);
+			// Edges
+			ctx.drawImage(bmp, boffx, boffy, width, 1, coffx + 1, coffy, width, 1);
+			ctx.drawImage(bmp, boffx, boffy + height - 1, width, 1, coffx + 1, coffy + height + 1, width, 1);
+			ctx.drawImage(bmp, boffx, boffy, 1, height, coffx, coffy + 1, 1, height);
+			ctx.drawImage(bmp, boffx + width - 1, boffy, 1, height, coffx + width + 1, coffy + 1, 1, height);
+			// Tile itself
+			ctx.drawImage(bmp, boffx, boffy, width, height, coffx + 1, coffy + 1, width, height);
+		}
+
+        function blitPaddedTile(ctx, bmp, xi, yi, width, height) {
+			// Bitmap Offset
+			const boffx = xi * width;
+			const boffy = yi * height;
+			// Canvas Offset
+			const coffx = xi * (width + 2);
+			const coffy = yi * (height + 2);
+			// Corners
+			ctx.drawImage(bmp, boffx, boffy, 1, 1, coffx + width + 1, coffy + height + 1, 1, 1); // Top Left
+			ctx.drawImage(bmp, boffx + width - 1, boffy, 1, 1, coffx, coffy + height + 1, 1, 1); // Top Right
+			ctx.drawImage(bmp, boffx, boffy + height - 1, 1, 1, coffx + width + 1, coffy, 1, 1); // Bottom Left
+			ctx.drawImage(bmp, boffx + width - 1, boffy + height - 1, 1, 1, coffx, coffy, 1, 1); // Bottom Right
+			// Edges
+			ctx.drawImage(bmp, boffx, boffy, width, 1, coffx + 1, coffy + height + 1, width, 1); // Top
+			ctx.drawImage(bmp, boffx, boffy + height - 1, width, 1, coffx + 1, coffy, width, 1); // Bottom
+			ctx.drawImage(bmp, boffx, boffy, 1, height, coffx + width + 1, coffy + 1, 1, height); // Left
+			ctx.drawImage(bmp, boffx + width - 1, boffy, 1, height, coffx, coffy + 1, 1, height); // Right
+			// Tile itself
+			ctx.drawImage(bmp, boffx, boffy, width, height, coffx + 1, coffy + 1, width, height);
+		}
+
+        function suffixFileName(fileName, suffix) {
+            const split = fileName.split(".");
+			let extension = "";
+            if (split.length !== 0)
+				extension = split.pop();
+            return split[0] + suffix + "." + extension;
+        }
+
+        imageDrop.ondrop = e => {
+            e.preventDefault();
+            const width = parseInt(tileWidth.value);
+            const height = parseInt(tileHeight.value);
+            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+                alert("Please select a valid tile width and height.");
+                return;
+            }
+
+			const file = e.dataTransfer.files[0];
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = async () => {
+                URL.revokeObjectURL(url);
+				if (img.width % width !== 0 || img.height % height !== 0) {
+					alert("Please make your image size divisible by your tile size.");
+					return;
+				}
+				const bmp = await createImageBitmap(img);
+                canvas.width = img.width + img.width / width * 2;
+                canvas.height = img.height + img.height / height * 2;
+                const ctx = canvas.getContext("2d");
+				for (let yi = 0; yi < img.height / height; yi++)
+					for (let xi = 0; xi < img.width / width; xi++)
+						blitPaddedTile(ctx, bmp, xi, yi, width, height);
+				downloadAnchor.href = canvas.toDataURL("image/png");
+				downloadAnchor.download = suffixFileName(file.name, "_padded");
+				downloadAnchor.click();
+            };
+            img.src = url;
+        };
+        imageDrop.ondragover = e => {
+            e.preventDefault();
+        }
+    </script>
+</body>
+</html>
